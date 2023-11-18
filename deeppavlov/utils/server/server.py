@@ -14,6 +14,7 @@
 
 import asyncio
 import os
+import re
 from collections import namedtuple
 from logging import getLogger
 from pathlib import Path
@@ -22,10 +23,9 @@ from typing import Dict, List, Optional, Union
 
 import uvicorn
 from fastapi import Body, FastAPI, HTTPException
-from fastapi.utils import generate_operation_id_for_path
 from pydantic import BaseConfig, BaseModel
-from pydantic.fields import Field, ModelField
-from pydantic.main import ModelMetaclass
+from pydantic.v1.fields import Field, ModelField
+from pydantic.v1.main import ModelMetaclass
 from starlette.middleware.cors import CORSMiddleware
 from starlette.responses import RedirectResponse
 
@@ -121,12 +121,19 @@ def get_ssl_params(server_params: dict,
     return ssl_config
 
 
+def _generate_operation_id_for_path(name: str, path: str, method: str) -> str:
+    operation_id = name + path
+    operation_id = re.sub(r"\W", "_", operation_id)
+    operation_id = operation_id + "_" + method.lower()
+    return operation_id
+
+
 def redirect_root_to_docs(fast_app: FastAPI, func_name: str, endpoint: str, method: str) -> None:
     """Adds api route to server that redirects user from root to docs with opened `endpoint` description."""
 
     @fast_app.get('/', include_in_schema=False)
     async def redirect_to_docs() -> RedirectResponse:
-        operation_id = generate_operation_id_for_path(name=func_name, path=endpoint, method=method)
+        operation_id = _generate_operation_id_for_path(name=func_name, path=endpoint, method=method)
         response = RedirectResponse(url=f'/docs#/default/{operation_id}')
         return response
 
